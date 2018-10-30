@@ -4,15 +4,8 @@ title: About
 permalink: /about/
 ---
 
-This is the base Jekyll theme. You can find out more info about customizing your Jekyll theme, as well as basic Jekyll usage documentation at [jekyllrb.com](https://jekyllrb.com/)
+Well .. I am not sure what to write. I see myself as technologist by heart (always saying nothing is impossing using technology, you just need right resources and appropriate time!) and scientist by mind. I am always hungry for new learnings, new technologies, new ideas.
 
-You can find the source code for Minima at GitHub:
-[jekyll][jekyll-organization] /
-[minima](https://github.com/jekyll/minima)
+People say I am extremely lazy nonetheless I consider myself an average sportsman. Puzzles intrigues me, baddy and squash seems fun and cricket is boring (too much free time at hand), great movie buff (like to see the movies and usually forget about it), certainly marks Batman as much better Hero than Superman (or any other Marvel character), wanderers of technologies (like to try new things however only expert in Microsoft technologies) ...
 
-You can find the source code for Jekyll at GitHub:
-[jekyll][jekyll-organization] /
-[jekyll](https://github.com/jekyll/jekyll)
-
-
-[jekyll-organization]: https://github.com/jekyll
+Will add it later :)
