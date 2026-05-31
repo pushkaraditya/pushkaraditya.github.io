@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Home 3D Layout — v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-0:#0b0e13; --bg-1:#10151d; --ink:#e9e4d8; --muted:#8c93a1;
+    --line:#2a3340; --amber:#e3a648; --amber-dim:#7a5e2c;
+    --panel:rgba(15,20,28,.82);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg-0);color:var(--ink);
+    font-family:"JetBrains Mono",ui-monospace,monospace;overflow:hidden}
+  #app{position:fixed;inset:0}
+  #scene{position:absolute;inset:0}
+  #labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+
+  .room-label{
+    pointer-events:none;text-align:center;line-height:1.15;
+    transform:translate(-50%,-50%);white-space:nowrap;
+    text-shadow:0 1px 6px rgba(0,0,0,.85);
+  }
+  .room-label .nm{font-family:"Fraunces",serif;font-weight:600;font-size:13px;
+    letter-spacing:.02em;color:#fdfaf2}
+  .room-label .dm{font-size:10px;color:#cdd3dd;letter-spacing:.04em;margin-top:2px}
+  .dir-label{font-family:"Fraunces",serif;font-weight:600;font-size:16px;color:var(--amber);
+    text-shadow:0 1px 7px rgba(0,0,0,.9);letter-spacing:.06em;pointer-events:none}
+
+  /* control panel */
+  #panel{position:absolute;top:18px;left:18px;width:262px;background:var(--panel);
+    border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px;
+    backdrop-filter:blur(10px);box-shadow:0 18px 50px -20px rgba(0,0,0,.8)}
+  #panel h1{font-family:"Fraunces",serif;font-weight:600;font-size:19px;margin:0 0 2px;
+    letter-spacing:.01em;color:#fdfaf2}
+  #panel .sub{font-size:10.5px;color:var(--muted);letter-spacing:.06em;
+    text-transform:uppercase;margin-bottom:13px}
+  .row{display:flex;gap:7px;margin-bottom:7px}
+  button{flex:1;cursor:pointer;font-family:inherit;font-size:11px;color:var(--ink);
+    background:#161c26;border:1px solid var(--line);border-radius:8px;padding:8px 6px;
+    letter-spacing:.02em;transition:.15s;display:flex;align-items:center;justify-content:center;gap:5px}
+  button:hover{border-color:var(--amber-dim);color:#fff;background:#1c2430}
+  button.on{border-color:var(--amber);color:var(--amber);background:#1f1a10}
+  .stat{display:flex;justify-content:space-between;font-size:11px;padding:4px 0;
+    border-top:1px dashed var(--line);color:var(--muted)}
+  .stat b{color:var(--ink);font-weight:500}
+  .legend{margin-top:11px;font-size:10px;color:var(--muted);line-height:1.6}
+  .legend span{display:inline-flex;align-items:center;gap:6px;margin-right:10px}
+  .sw{width:11px;height:11px;border-radius:3px;border:1px solid rgba(255,255,255,.15);display:inline-block}
+
+  #hint{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);
+    font-size:10.5px;color:var(--muted);letter-spacing:.08em;background:var(--panel);
+    border:1px solid var(--line);padding:7px 14px;border-radius:20px;backdrop-filter:blur(8px)}
+  #hint b{color:var(--amber)}
+  .compass{position:absolute;top:18px;right:18px;width:58px;height:58px;border-radius:50%;
+    background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(8px);
+    display:flex;align-items:center;justify-content:center;font-family:"Fraunces",serif}
+  .compass .n{font-size:13px;color:var(--amber);font-weight:600}
+  .compass .arrow{position:absolute;top:5px;left:50%;transform:translateX(-50%);
+    width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;
+    border-bottom:9px solid var(--amber)}
+  @media (max-width:560px){#panel{width:calc(100% - 36px)}}
+
+  /* first-person walk mode */
+  #crosshair{position:absolute;top:50%;left:50%;width:8px;height:8px;margin:-4px 0 0 -4px;
+    border-radius:50%;border:1.5px solid rgba(255,255,255,.85);box-shadow:0 0 7px rgba(0,0,0,.7);display:none}
+  #walkHud{position:absolute;bottom:54px;left:50%;transform:translateX(-50%);display:none;
+    font-size:11px;color:var(--ink);background:var(--panel);border:1px solid var(--line);
+    padding:8px 16px;border-radius:20px;backdrop-filter:blur(8px);letter-spacing:.04em}
+  #walkHud b{color:var(--amber)}
+  body.walking #crosshair{display:block}
+  body.walking #walkHud{display:block}
+  body.walking #hint{display:none}
+  body.walking #scene{cursor:grab}
+  body.walking.grabbing #scene{cursor:grabbing}
+
+  #panelHead{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  #panelHead h1{margin:0}
+  #btnCollapse{flex:0 0 auto;width:26px;height:26px;padding:0;font-size:12px;border-radius:7px}
+  #panelBody{margin-top:11px}
+  #panel.collapsed{width:auto}
+  #panel.collapsed #panelBody{display:none}
+
+  #readout{position:absolute;top:18px;right:18px;min-width:184px;background:var(--panel);
+    border:1px solid var(--line);border-radius:12px;padding:11px 13px;backdrop-filter:blur(10px);
+    pointer-events:none;box-shadow:0 14px 40px -22px rgba(0,0,0,.8)}
+  #roTitle{font-size:9.5px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin-bottom:6px}
+  #roHead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  #roHead #roTitle{margin-bottom:0}
+  #btnRoCollapse{flex:0 0 auto;width:22px;height:22px;padding:0;font-size:11px;border-radius:6px;pointer-events:auto}
+  #roBody{margin-top:7px}
+  #readout.collapsed #roBody{display:none}
+  #roLine1{font-size:15px;color:#fdfaf2;font-family:"JetBrains Mono",monospace;letter-spacing:.02em}
+  #roLine1 b{color:var(--amber);font-weight:700}
+  #roLine2{margin-top:4px;font-size:11px;color:var(--ink);letter-spacing:.03em}
+  #roLine2 b{color:var(--amber);font-weight:700}
+  #roLine3{margin-top:2px;font-size:11px;color:var(--muted);letter-spacing:.03em}
+  #roLine3 b{color:var(--ink);font-weight:700}
+  #roNote{margin-top:8px;font-size:8.5px;color:var(--muted);letter-spacing:.04em;line-height:1.5;
+    border-top:1px dashed var(--line);padding-top:6px}
+  @media (max-width:560px){#readout{top:auto;bottom:84px;right:12px;min-width:0}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene"></div>
+  <div id="labels"></div>
+
+  <div id="panel">
+    <div id="panelHead">
+      <h1>Home Layout · 3D</h1>
+      <button id="btnCollapse" title="Collapse panel">▾</button>
+    </div>
+    <div id="panelBody">
+    <div class="sub">First pass — dimensions in feet</div>
+    <div class="row">
+      <button id="btnReset">⟲ Reset view</button>
+      <button id="btnTop">▣ Top view</button>
+    </div>
+    <div class="row">
+      <button id="btnWalls" class="on">▦ Walls: solid</button>
+      <button id="btnLabels" class="on">A Labels: on</button>
+    </div>
+    <div class="row">
+      <button id="btnWalk">🚶 Walk through</button>
+    </div>
+    <div style="margin-top:10px">
+      <div class="stat"><span>Footprint span</span><b id="span">—</b></div>
+      <div class="stat"><span>Wall height</span><b>10 ft</b></div>
+      <div class="stat"><span>Defined area</span><b id="area">—</b></div>
+      <div class="stat"><span>Rooms</span><b id="cnt">—</b></div>
+    </div>
+    <div class="legend">
+      Each room is colour-coded — floor &amp; walls share a hue.<br>
+      <span><i class="sw" style="background:#8fb4c4"></i>bathroom</span>
+      <span><i class="sw" style="background:#88a36a"></i>outdoor</span>
+      <span><i class="sw" style="background:#596169"></i>pillar</span>
+    </div>
+    </div>
+  </div>
+
+  <div id="readout">
+    <div id="roHead">
+      <div id="roTitle">Cursor position</div>
+      <button id="btnRoCollapse" title="Collapse">▾</button>
+    </div>
+    <div id="roBody">
+      <div id="roLine1">move the mouse over the plan</div>
+      <div id="roLine2"></div>
+      <div id="roLine3"></div>
+      <div id="roNote">0,0 = NW (top-left) corner · +x → East · +z → South · units: feet</div>
+    </div>
+  </div>
+
+  <div id="hint"><b>drag</b> rotate · <b>scroll</b> zoom · <b>right-drag</b> pan</div>
+  <div id="crosshair"></div>
+  <div id="walkHud"><b>Drag</b> to look · <b>W A S D</b> / arrows to move · <b>scroll</b> to zoom · hit <b>Walk: exit</b> to leave</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script>
+// ---------- Floor-plan data (centimetres). x,z = top-left corner; w,d = size ----------
+// z runs "south" (toward viewer/front). Arrangement follows the uploaded sketch.
+const ROOMS = [
+  // ---------------- LEFT CLUSTER ----------------
+  { id:'BY', name:'Backyard', x:0,   z:0,   w:260, d:420, color:0x88a36a, outdoor:true },
+  { id:'KT', name:'Kitchen',  x:260, z:0,   w:240, d:420, color:0xd8b48a, open:['E'] },
+  { id:'GT', name:'Guest Bed + Theatre', x:0, z:420, w:500, d:240, color:0xb9aecb },
+  { id:'GC', name:'Guest Closet',   x:0,   z:660, w:250, d:140, color:0xcbb27a },
+  { id:'GB', name:'Guest Bathroom', x:250, z:660, w:250, d:140, color:0x8fb4c4 },
+  // ---------------- CENTRAL SPINE ----------------
+  { id:'HD', name:'Central Hall + Dining', x:500, z:0, w:360, d:800, color:0xd9cdb6, open:['W'] },
+  // -------- RIGHT CLUSTER (depth 300+200+300 = 800, matches hall). Both baths equal: 210x200 --------
+  { id:'MB', name:'Master Bedroom',   x:860,  z:0,   w:420, d:300, color:0xc7976e },
+  { id:'BF', name:'Bathroom · Bed 2', x:860,  z:300, w:210, d:200, color:0x8fb4c4 },
+  { id:'BG', name:'Bathroom · Master',x:1070, z:300, w:210, d:200, color:0x8fb4c4 },
+  { id:'B2', name:'Bedroom 2',        x:860,  z:500, w:420, d:300, color:0x9ec1a8 },
+];
+
+const WALL_H = 305, WALL_T = 12;            // cm
+const M = v => v/100;                        // cm -> m (scene units)
+const FT = cm => cm/30.48;                   // cm -> feet
+const ft1 = cm => FT(cm).toFixed(1);         // cm -> feet, 1 decimal
+
+// Custom wall segments {cx,cz = centre (cm), lx,lz = length (cm), color}
+const EXTRA_WALLS = [
+  { cx:506, cz:610, lx:WALL_T, lz:380, color:0x6c665b },   // hall west wall beside the guest suite (z 420-800), inset inside the hall
+];
+// Free-standing structural pillars {x,z = centre (cm), s = side (cm)}.
+const PILLARS = [
+  { x:596, z:428, s:35, label:'pillar' },
+];
+
+// bounding box for centring
+let minX=1e9,minZ=1e9,maxX=-1e9,maxZ=-1e9;
+ROOMS.forEach(r=>{minX=Math.min(minX,r.x);minZ=Math.min(minZ,r.z);
+  maxX=Math.max(maxX,r.x+r.w);maxZ=Math.max(maxZ,r.z+r.d);});
+const cx=(minX+maxX)/2, cz=(minZ+maxZ)/2;
+const wx = wxcm => M(wxcm - cx);   // world X from plan x(cm)
+const wz = wzcm => M(wzcm - cz);   // world Z from plan z(cm)
+
+// ---------- Three.js scene ----------
+const sceneEl = document.getElementById('scene');
+const W = ()=>window.innerWidth, Hh = ()=>window.innerHeight;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b0e13);
+scene.fog = new THREE.Fog(0x0b0e13, 38, 80);
+
+const camera = new THREE.PerspectiveCamera(48, W()/Hh(), 0.1, 500);
+const HOME_CAM = new THREE.Vector3(13, 15, 19);
+camera.position.copy(HOME_CAM);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(W(),Hh());
+renderer.shadowMap.enabled = false;          // shadows disabled
+sceneEl.appendChild(renderer.domElement);
+
+const labelRenderer = new THREE.CSS2DRenderer();
+labelRenderer.setSize(W(),Hh());
+labelRenderer.domElement.style.position='absolute';
+labelRenderer.domElement.style.top='0';
+labelRenderer.domElement.style.pointerEvents='none';
+document.getElementById('labels').appendChild(labelRenderer.domElement);
+
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = .08;
+controls.maxPolarAngle = Math.PI*0.495; controls.minDistance = 4; controls.maxDistance = 60;
+controls.target.set(0,1,0);
+
+// ---------- lights ----------
+scene.add(new THREE.HemisphereLight(0xdfe6f0, 0x141820, .9));
+const amb = new THREE.AmbientLight(0xffffff, .35); scene.add(amb);
+const sun = new THREE.DirectionalLight(0xfff0d8, 1.0);
+sun.position.set(14,22,8); sun.castShadow=false;
+scene.add(sun);
+
+// ---------- ground + grid ----------
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(120,120),
+  new THREE.MeshStandardMaterial({color:0x0c1016, roughness:1, metalness:0}));
+ground.rotation.x=-Math.PI/2; ground.position.y=-0.02; ground.receiveShadow=true;
+scene.add(ground);
+const grid = new THREE.GridHelper(120,120,0x223040,0x161e29);
+grid.position.y=-0.01; scene.add(grid);
+
+// ---------- build rooms ----------
+const wallMats=[], labelObjs=[], solids=[];
+let definedArea=0, definedCount=0;
+
+ROOMS.forEach(r=>{
+  const fx = wx(r.x + r.w/2), fz = wz(r.z + r.d/2);
+  const fw = M(r.w), fd = M(r.d);
+
+  // floor slab
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: r.tbd ? 0xe3a648 : r.color,
+    roughness:.92, metalness:0,
+    transparent: !!r.tbd, opacity: r.tbd ? .42 : 1 });
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(fw, 0.04, fd), floorMat);
+  floor.position.set(fx, 0.0, fz); floor.receiveShadow=true; scene.add(floor);
+
+  // outline edge on floor
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(fw,0.04,fd)),
+    new THREE.LineBasicMaterial({color: r.tbd?0xe3a648:0x4a5564}));
+  edges.position.copy(floor.position); scene.add(edges);
+
+  // walls (skip for outdoor + tbd so they read as open spaces)
+  const h = M(WALL_H), t = M(WALL_T), tc = WALL_T;
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(r.color).multiplyScalar(0.5),   // darker tint of the room's floor colour
+    roughness:.85, metalness:.02, transparent:true, opacity:1 });
+  const hasWalls = !r.tbd && !r.outdoor;
+  if(hasWalls){
+    wallMats.push(wallMat);
+    const mk=(px,pz,sw,sd)=>{
+      const m=new THREE.Mesh(new THREE.BoxGeometry(sw,h,sd), wallMat);
+      m.position.set(wx(px), h/2, wz(pz)); m.castShadow=true; m.receiveShadow=true; scene.add(m); solids.push(m);
+    };
+    const open = r.open||[];
+    // walls inset just inside the room so each room keeps its own wall colour on shared edges
+    if(!open.includes('N')) mk(r.x+r.w/2,      r.z + tc/2,     fw, t);  // north
+    if(!open.includes('S')) mk(r.x+r.w/2,      r.z+r.d - tc/2, fw, t);  // south
+    if(!open.includes('W')) mk(r.x + tc/2,     r.z+r.d/2,      t,  fd); // west
+    if(!open.includes('E')) mk(r.x+r.w - tc/2, r.z+r.d/2,      t,  fd); // east
+  }
+  if(!r.tbd){ definedArea += (r.w*r.d)/10000; definedCount++; }
+
+  // label
+  const el=document.createElement('div');
+  el.className='room-label';
+  const dm = (r.outdoor?'outdoor · ':'')+`${ft1(r.w)} × ${ft1(r.d)} ft`;
+  el.innerHTML = `<div class="nm">${r.name}</div><div class="dm">${dm}</div>`;
+  const lab=new THREE.CSS2DObject(el);
+  lab.position.set(fx, (hasWalls?M(WALL_H):M(70))+0.25, fz);
+  scene.add(lab); labelObjs.push(lab);
+});
+
+// ---------- custom wall segments ----------
+EXTRA_WALLS.forEach(w=>{
+  const mat=new THREE.MeshStandardMaterial({color:w.color, roughness:.85, metalness:.02, transparent:true, opacity:1});
+  const m=new THREE.Mesh(new THREE.BoxGeometry(M(w.lx), M(WALL_H), M(w.lz)), mat);
+  m.position.set(wx(w.cx), M(WALL_H)/2, wz(w.cz)); m.castShadow=true; m.receiveShadow=true;
+  scene.add(m); wallMats.push(mat); solids.push(m);
+});
+
+// ---------- structural pillars (always solid — NOT affected by the glass toggle) ----------
+PILLARS.forEach(p=>{
+  const m=new THREE.Mesh(new THREE.BoxGeometry(M(p.s), M(WALL_H), M(p.s)),
+    new THREE.MeshStandardMaterial({color:0x596169, roughness:.7, metalness:.06}));
+  m.position.set(wx(p.x), M(WALL_H)/2, wz(p.z)); m.castShadow=true; m.receiveShadow=true; scene.add(m); solids.push(m);
+  if(p.label){
+    const el=document.createElement('div'); el.className='room-label';
+    el.innerHTML=`<div class="dm" style="color:#b7bfca">▣ ${p.label}</div>`;
+    const o=new THREE.CSS2DObject(el); o.position.set(wx(p.x), M(WALL_H)+0.2, wz(p.z));
+    scene.add(o); labelObjs.push(o);
+  }
+});
+
+// direction markers — positioned in world space so they track the model as it rotates.
+// Plan top (low z) = North, bottom (high z) = South, right (high x) = East.
+function dirLabel(txt, xcm, zcm){
+  const el=document.createElement('div'); el.className='dir-label'; el.textContent=txt;
+  const o=new THREE.CSS2DObject(el); o.position.set(wx(xcm), 0.05, wz(zcm)); scene.add(o);
+}
+const midX=(minX+maxX)/2, midZ=(minZ+maxZ)/2;
+dirLabel('N', midX, minZ-150);
+dirLabel('S', midX, maxZ+150);
+dirLabel('E', maxX+150, midZ);
+dirLabel('W', minX-150, midZ);
+
+// stats
+document.getElementById('span').textContent =
+  `${ft1(maxX-minX)} × ${ft1(maxZ-minZ)} ft`;
+document.getElementById('area').textContent = (definedArea*10.7639).toFixed(0)+' sq ft';
+document.getElementById('cnt').textContent  = `${definedCount} + ${ROOMS.length-definedCount}?`;
+
+// ---------- coordinate readout + measuring ----------
+const ray = new THREE.Raycaster();
+const planeY0 = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+const ndc = new THREE.Vector2(), hitPt = new THREE.Vector3();
+function roomAt(px,pz){
+  for(const r of ROOMS){ if(px>=r.x && px<=r.x+r.w && pz>=r.z && pz<=r.z+r.d) return r.name; }
+  return null;
+}
+// live cursor position over the plan (orbit mode)
+renderer.domElement.addEventListener('pointermove', e=>{
+  if(walkMode) return;
+  const rect=renderer.domElement.getBoundingClientRect();
+  ndc.x=((e.clientX-rect.left)/rect.width)*2-1;
+  ndc.y=-((e.clientY-rect.top)/rect.height)*2+1;
+  ray.setFromCamera(ndc,camera);
+  if(ray.ray.intersectPlane(planeY0,hitPt)){
+    const xcm=hitPt.x*100+cx, zcm=hitPt.z*100+cz;
+    document.getElementById('roTitle').textContent='Cursor position';
+    document.getElementById('roLine1').innerHTML=`x <b>${ft1(xcm)}</b>  z <b>${ft1(zcm)}</b> <span style="color:var(--muted)">ft</span>`;
+    const rm=roomAt(xcm,zcm);
+    document.getElementById('roLine2').innerHTML = rm ? `over <b>${rm}</b>` : 'outside plan';
+    document.getElementById('roLine3').textContent='';
+  }
+});
+
+// ---------- UI ----------
+let wallsSolid=true, labelsOn=true;
+const $=id=>document.getElementById(id);
+$('btnWalls').onclick=()=>{ wallsSolid=!wallsSolid;
+  wallMats.forEach(m=>m.opacity=wallsSolid?1:0.22);
+  $('btnWalls').classList.toggle('on',wallsSolid);
+  $('btnWalls').textContent= wallsSolid?'▦ Walls: solid':'▦ Walls: glass'; };
+$('btnLabels').onclick=()=>{ labelsOn=!labelsOn;
+  labelObjs.forEach(l=> l.visible = labelsOn);
+  $('btnLabels').classList.toggle('on',labelsOn);
+  $('btnLabels').textContent=labelsOn?'A Labels: on':'A Labels: off'; };
+
+$('btnCollapse').onclick=()=>{ const p=$('panel'); p.classList.toggle('collapsed');
+  $('btnCollapse').textContent = p.classList.contains('collapsed')?'▸':'▾'; };
+
+$('btnRoCollapse').onclick=()=>{ const r=$('readout'); r.classList.toggle('collapsed');
+  $('btnRoCollapse').textContent = r.classList.contains('collapsed')?'▸':'▾'; };
+
+function tween(toPos,toTgt){
+  const p0=camera.position.clone(), t0=controls.target.clone(), t=performance.now();
+  (function step(){ const k=Math.min((performance.now()-t)/650,1), e=1-Math.pow(1-k,3);
+    camera.position.lerpVectors(p0,toPos,e); controls.target.lerpVectors(t0,toTgt,e);
+    if(k<1) requestAnimationFrame(step); })();
+}
+$('btnReset').onclick=()=>tween(HOME_CAM.clone(), new THREE.Vector3(0,1,0));
+$('btnTop').onclick=()=>tween(new THREE.Vector3(0.01,26,0.01), new THREE.Vector3(0,0,0));
+
+// ---------- first-person walk mode (iframe-safe — drag to look, no Pointer Lock) ----------
+const keys = {};
+const UP = new THREE.Vector3(0,1,0);
+const EYE = 1.6, SPEED = 3.4, LOOK = 0.0026;   // eye height (m), speed (m/s), look sensitivity
+let walkMode=false, dragging=false, lastX=0, lastY=0;
+let yaw=0, pitch=0, lastT=performance.now();
+const savedCam=new THREE.Vector3(), savedTgt=new THREE.Vector3();
+
+function applyLook(){ camera.rotation.set(pitch, yaw, 0, 'YXZ'); }
+
+function enterWalk(){
+  walkMode=true; controls.enabled=false;
+  savedCam.copy(camera.position); savedTgt.copy(controls.target);
+  camera.position.set(0, EYE, M(maxZ - cz) - 1.8);   // stand in the hall
+  yaw=0; pitch=0; applyLook();                          // face North (-Z)
+  camera.fov=60; camera.updateProjectionMatrix();      // slightly wider lens for walking
+  document.body.classList.add('walking');
+  $('btnWalk').classList.add('on'); $('btnWalk').textContent='🚶 Walk: exit';
+  $('panel').classList.add('collapsed'); $('btnCollapse').textContent='▸';
+}
+function exitWalk(){
+  walkMode=false; controls.enabled=true; dragging=false;
+  camera.position.copy(savedCam); controls.target.copy(savedTgt);
+  camera.fov=48; camera.updateProjectionMatrix();
+  document.body.classList.remove('walking','grabbing');
+  $('btnWalk').classList.remove('on'); $('btnWalk').textContent='🚶 Walk through';
+  $('panel').classList.remove('collapsed'); $('btnCollapse').textContent='▾';
+}
+$('btnWalk').onclick=()=> walkMode ? exitWalk() : enterWalk();
+
+renderer.domElement.addEventListener('pointerdown',e=>{ if(!walkMode)return;
+  dragging=true; lastX=e.clientX; lastY=e.clientY; document.body.classList.add('grabbing'); });
+addEventListener('pointerup',()=>{ dragging=false; document.body.classList.remove('grabbing'); });
+addEventListener('pointermove',e=>{ if(!walkMode||!dragging)return;
+  yaw   -= (e.clientX-lastX)*LOOK;
+  pitch -= (e.clientY-lastY)*LOOK;
+  pitch  = Math.max(-1.2, Math.min(1.2, pitch));
+  lastX=e.clientX; lastY=e.clientY; applyLook(); });
+addEventListener('keydown',e=>{ keys[e.code]=true;
+  if(walkMode && ['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
+addEventListener('keyup', e=>{ keys[e.code]=false; });
+renderer.domElement.addEventListener('wheel',e=>{ if(!walkMode)return; e.preventDefault();
+  camera.fov = Math.max(25, Math.min(85, camera.fov + (e.deltaY>0? 3 : -3)));
+  camera.updateProjectionMatrix(); }, {passive:false});
+
+function walkStep(){
+  const now=performance.now(), dt=Math.min((now-lastT)/1000, .05); lastT=now;
+  const look=new THREE.Vector3(); camera.getWorldDirection(look);
+  const fwd=look.clone(); fwd.y=0;
+  if(fwd.lengthSq()>1e-6){
+    fwd.normalize();
+    const right=new THREE.Vector3().crossVectors(fwd, UP).normalize();
+    const move=new THREE.Vector3();
+    if(keys['KeyW']||keys['ArrowUp'])    move.add(fwd);
+    if(keys['KeyS']||keys['ArrowDown'])  move.sub(fwd);
+    if(keys['KeyD']||keys['ArrowRight']) move.add(right);
+    if(keys['KeyA']||keys['ArrowLeft'])  move.sub(right);
+    if(move.lengthSq()>0){ move.normalize().multiplyScalar(SPEED*dt); camera.position.add(move); }
+  }
+  camera.position.y=EYE;                 // stay grounded
+  // ---- measuring readout: position, current room, facing, distance to surface aimed at ----
+  const xcm=camera.position.x*100+cx, zcm=camera.position.z*100+cz;
+  const bearing=(Math.atan2(fwd.x, -fwd.z)*180/Math.PI+360)%360;
+  const card=['N','NE','E','SE','S','SW','W','NW'][Math.round(bearing/45)%8];
+  ray.set(camera.position, look.normalize());
+  const hit=ray.intersectObjects(solids,false)[0];
+  const ahead = (hit && hit.distance<25) ? (hit.distance*3.28084).toFixed(1)+' ft' : '—';
+  const rm=roomAt(xcm,zcm);
+  document.getElementById('roTitle').textContent='Walking';
+  document.getElementById('roLine1').innerHTML=`x <b>${ft1(xcm)}</b>  z <b>${ft1(zcm)}</b> <span style="color:var(--muted)">ft</span>`;
+  document.getElementById('roLine2').innerHTML= rm ? `in <b>${rm}</b>` : 'in <b>open space</b>';
+  document.getElementById('roLine3').innerHTML=`facing <b>${card}</b> · ahead <b>${ahead}</b>`;
+}
+
+// ---------- loop ----------
+addEventListener('resize',()=>{
+  camera.aspect=W()/Hh(); camera.updateProjectionMatrix();
+  renderer.setSize(W(),Hh()); labelRenderer.setSize(W(),Hh()); });
+(function animate(){ requestAnimationFrame(animate);
+  if(walkMode) walkStep(); else { lastT=performance.now(); controls.update(); }
+  renderer.render(scene,camera); labelRenderer.render(scene,camera); })();
+</script>
+</body>
+</html>
